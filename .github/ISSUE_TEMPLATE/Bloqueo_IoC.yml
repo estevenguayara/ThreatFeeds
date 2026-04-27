@@ -35,8 +35,10 @@ body:
       description: "Indique la entidad que reporta la amenaza"
       options:
         - CSIRT-CL
-        - CSIRT-CO
+        - CSIRT-CO Ponal
         - Interno (Monitoreo propio)
+        - Reporte Tisal
+        - Reporte Solgas
     validations:
       required: true
 
