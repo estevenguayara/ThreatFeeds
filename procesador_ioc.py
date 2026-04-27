@@ -11,16 +11,21 @@ ISSUE_NUMBER = os.getenv('ISSUE_NUMBER')
 REPO = os.getenv('REPO')
 
 def extraer_datos(body):
-    """Extrae los campos del formulario usando Regex."""
-    tipo = re.search(r'### Tipo de IoC\s+(.*?)\s+', body)
-    valor = re.search(r'### Valor del Indicador.*?\s+(.*?)\s+', body)
-    fuente = re.search(r'### Fuente del Indicador\s+(.*?)\s+', body)
+    """Extrae los campos buscando palabras clave, ignorando símbolos y paréntesis."""
+    # Buscamos el texto que está justo después de los títulos del formulario
+    tipo = re.search(r'### Tipo de IoC\s*\n*(.*)', body, re.IGNORECASE)
+    valor = re.search(r'### Valor del Indicador.*?\s*\n*(.*)', body, re.IGNORECASE)
+    fuente = re.search(r'### Fuente del Indicador\s*\n*(.*)', body, re.IGNORECASE)
     
-    return {
+    extraidos = {
         "tipo": tipo.group(1).strip() if tipo else None,
         "valor": valor.group(1).strip() if valor else None,
         "fuente": fuente.group(1).strip() if fuente else None
     }
+    
+    # Imprimimos en la consola de la Action para que puedas ver qué detectó Python
+    print(f"DEBUG: Datos capturados -> {extraidos}")
+    return extraidos
 
 def validar_formato(tipo, valor):
     """Valida si el valor ingresado es una IP o URL real."""
