@@ -1,7 +1,7 @@
 name: "Solicitud de Bloqueo de IoC"
 description: "Añade una IP o URL al feed del Firewall previa validación"
 title: "[SOLICITUD]: Nuevo análisis de IoC"
-labels: ["palo-alto-feed"]
+labels: ["firewall-feed"]
 body:
   - type: markdown
     attributes:
