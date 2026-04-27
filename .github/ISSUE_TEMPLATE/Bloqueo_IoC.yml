@@ -1,0 +1,28 @@
+name: "Solicitud de Bloqueo de IP"
+description: "Usa este formulario para añadir una IP al feed del Firewall"
+title: "[BLOCK]: <IP>"
+labels: ["palo-alto-feed"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🛡️ Sistema de Inteligencia de Amenazas
+  - type: input
+    id: ip_address
+    attributes:
+      label: "Dirección IP"
+      placeholder: "Ej: 1.2.3.4"
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: "Nivel de Críticos"
+      options:
+        - Alta (Ataque activo)
+        - Media (Escaneo de puertos)
+        - Baja (Reputación sospechosa)
+  - type: textarea
+    id: justification
+    attributes:
+      label: "Justificación / Evidencia"
