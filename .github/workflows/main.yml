@@ -5,7 +5,7 @@ on:
 
 jobs:
   analizar-y-enrutar:
-    if: contains(github.event.issue.labels.*.name, 'palo-alto-feed')
+    if: contains(github.event.issue.labels.*.name, 'firewall-feed')
     runs-on: ubuntu-latest
     permissions:
       issues: write
