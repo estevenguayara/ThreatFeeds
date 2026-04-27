@@ -58,7 +58,7 @@ def enviar_comentario_github(mensaje, cerrar=False):
     requests.post(url, json={"body": mensaje}, headers=headers)
     
     if cerrar:
-        url_issue = f"https://api.github.com/repos/{repo}/issues/{issue_number}"
+        url_issue = f"https://api.github.com/repos/{REPO}/issues/{ISSUE_NUMBER}"
         requests.patch(url_issue, json={"state": "closed"}, headers=headers)
 
 # --- EJECUCIÓN PRINCIPAL ---
