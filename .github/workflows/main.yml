@@ -1,0 +1,41 @@
+name: Procesador de Amenazas
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  analizar-y-enrutar:
+    if: contains(github.event.issue.labels.*.name, 'palo-alto-feed')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+    
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Master Script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VT_APIKEY: ${{ secrets.VT_APIKEY }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
+        run: python procesador_ioc.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+          git add *.txt
+          git commit -m "Auto-update IoC (Issue #${{ github.event.issue.number }})" || echo "No changes"
+          git push
