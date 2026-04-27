@@ -53,7 +53,7 @@ def consultar_virustotal(tipo, valor):
 
 def enviar_comentario_github(mensaje, cerrar=False):
     """Escribe feedback en el Issue de GitHub."""
-    url = f"https://api.github.com/repos/{repo}/issues/{issue_number}/comments"
+    url = f"https://api.github.com/repos/{REPO}/issues/{ISSUE_NUMBER}/comments"
     headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
     requests.post(url, json={"body": mensaje}, headers=headers)
     
