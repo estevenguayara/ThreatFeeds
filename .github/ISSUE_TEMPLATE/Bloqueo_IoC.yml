@@ -1,28 +1,49 @@
-name: "Solicitud de Bloqueo de IP"
-description: "Usa este formulario para añadir una IP al feed del Firewall"
-title: "[BLOCK]: <IP>"
+name: "Solicitud de Bloqueo de IoC"
+description: "Añade una IP o URL al feed del Firewall previa validación"
+title: "[SOLICITUD]: Nuevo análisis de IoC"
 labels: ["palo-alto-feed"]
 body:
   - type: markdown
     attributes:
       value: |
-        ### 🛡️ Sistema de Inteligencia de Amenazas
-  - type: input
-    id: ip_address
+        ### 🛡️ Sistema de Gestión de Indicadores de Compromiso
+        Complete los datos para validar el indicador con VirusTotal-AbuseIPDB y actualizar las listas del Firewall.
+  
+  - type: dropdown
+    id: ioc_type
     attributes:
-      label: "Dirección IP"
-      placeholder: "Ej: 1.2.3.4"
+      label: "Tipo de IoC"
+      description: "Seleccione si lo que va a ingresar es una dirección IP o una dirección URL"
+      options:
+        - IP
+        - URL
     validations:
       required: true
-  - type: dropdown
-    id: severity
+
+  - type: input
+    id: ioc_value
     attributes:
-      label: "Nivel de Críticos"
+      label: "Valor del Indicador (IP o URL)"
+      placeholder: "Ej: 1.2.3.4 o https://malicious-site.com/exe"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source_origin
+    attributes:
+      label: "Fuente del Indicador"
+      description: "Indique la entidad que reporta la amenaza"
       options:
-        - Alta (Ataque activo)
-        - Media (Escaneo de puertos)
-        - Baja (Reputación sospechosa)
+        - CSIRT-CL
+        - CSIRT-CO
+        - Interno (Monitoreo propio)
+    validations:
+      required: true
+
   - type: textarea
     id: justification
     attributes:
-      label: "Justificación / Evidencia"
+      label: "Justificación Adicional"
+      placeholder: "Opcional: ID de incidente, logs, o detalles del ataque..."
+    validations:
+      required: false
