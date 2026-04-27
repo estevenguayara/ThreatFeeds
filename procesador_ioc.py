@@ -11,14 +11,11 @@ ISSUE_NUMBER = os.getenv('ISSUE_NUMBER')
 REPO = os.getenv('REPO')
 
 def extraer_datos(body):
-    """Extrae datos usando búsqueda de patrones, ignorando el ruido de Markdown."""
-    # 1. Limpiar el cuerpo de posibles saltos de línea de Windows (\r)
+    """Analiza el cuerpo del Issue para extraer el valor y la fuente."""
     clean_body = body.replace('\r', '')
 
-    # 2. Extraer Valor (Busca algo que parezca IP o una URL simple)
-    # Buscamos primero un patrón de IP (4 grupos de números)
+    # 1. Extraer Valor (IP o URL)
     ip_match = re.search(r'(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})', clean_body)
-    # Si no hay IP, buscamos algo que empiece con http
     url_match = re.search(r'(https?://[^\s\n\r]+)', clean_body)
 
     valor = None
@@ -31,59 +28,62 @@ def extraer_datos(body):
         valor = url_match.group(1).strip()
         tipo = "URL"
 
-    # 3. Extraer Fuente (Buscamos palabras clave CL o CO)
-    fuente = "Interno"
-    if "CL" in clean_body.upper():
-        fuente = "CSIRT-CL"
-    elif "CO" in clean_body.upper():
-        fuente = "CSIRT-CO"
+    # 2. Identificar Fuente (Mapeo de las 5 fuentes solicitadas)
+    # Buscamos palabras clave en el texto del Issue
+    fuente_final = "Interno" # Valor por defecto
+    
+    fuentes_disponibles = {
+        "CSIRT-CL": "CSIRT-CL",
+        "CSIRT-CO": "CSIRT-CO",
+        "TISAL": "Tisal",
+        "SOLGAS": "Solgas",
+        "INTERNO": "Interno"
+    }
 
-    datos = {"tipo": tipo, "valor": valor, "fuente": fuente}
-    print(f"DEBUG: Datos procesados -> {datos}")
-    return datos
+    body_upper = clean_body.upper()
+    for clave, nombre_formateado in fuentes_disponibles.items():
+        if clave in body_upper:
+            fuente_final = nombre_formateado
+            break
+
+    return {"tipo": tipo, "valor": valor, "fuente": fuente_final}
 
 def validar_formato(tipo, valor):
-    """Valida estrictamente el valor final."""
-    if not valor:
-        return False
+    """Verifica que el valor extraído sea técnicamente correcto."""
+    if not valor: return False
     if tipo == "IP":
         try:
             ipaddress.ip_address(valor)
             return True
-        except ValueError:
+        except:
             return False
-    elif tipo == "URL":
-        return valor.startswith(("http://", "https://"))
-    return False
+    return valor.startswith(("http://", "https://"))
 
 def consultar_virustotal(tipo, valor):
-    """Consulta reputación en VirusTotal."""
-    if not VT_APIKEY or VT_APIKEY == "":
-        print("Aviso: No hay VT_APIKEY, saltando consulta.")
-        return 0
+    """Consulta la reputación en VirusTotal si hay API Key."""
+    if not VT_APIKEY:
+        print("Aviso: Sin VT_APIKEY, se procesará con reputación mínima.")
+        return 1 # Si no hay clave, dejamos pasar para no bloquear el flujo
         
-    header = {"x-apikey": VT_APIKEY}
-    # VirusTotal no acepta URLs planas fácilmente, solo IPs para este ejemplo
     if tipo == "IP":
         url = f"https://www.virustotal.com/api/v3/ip_addresses/{valor}"
+        headers = {"x-apikey": VT_APIKEY}
         try:
-            response = requests.get(url, headers=header, timeout=10)
-            if response.status_code == 200:
-                stats = response.json()['data']['attributes']['last_analysis_stats']
-                return stats.get('malicious', 0)
+            res = requests.get(url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                return res.json()['data']['attributes']['last_analysis_stats'].get('malicious', 0)
         except Exception as e:
-            print(f"Error VT: {e}")
-    return 0
+            print(f"Error consultando VT: {e}")
+    return 1 # Por defecto permitimos el proceso si falla la consulta
 
 def enviar_comentario_github(mensaje, cerrar=False):
-    """Envía feedback al Issue."""
+    """Publica un comentario en el Issue y opcionalmente lo cierra."""
     url = f"https://api.github.com/repos/{REPO}/issues/{ISSUE_NUMBER}/comments"
     headers = {
         "Authorization": f"token {GITHUB_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
     requests.post(url, json={"body": mensaje}, headers=headers)
-    
     if cerrar:
         requests.patch(f"https://api.github.com/repos/{REPO}/issues/{ISSUE_NUMBER}", 
                        json={"state": "closed"}, headers=headers)
@@ -91,32 +91,36 @@ def enviar_comentario_github(mensaje, cerrar=False):
 # --- EJECUCIÓN PRINCIPAL ---
 datos = extraer_datos(ISSUE_BODY)
 
-# Validamos si encontramos algo
+# Validar que encontramos algo útil
 if not datos['valor'] or not validar_formato(datos['tipo'], datos['valor']):
     enviar_comentario_github(
-        f"❌ **Error de Formato**\nNo pude extraer una IP o URL válida. \nValor detectado: `{datos['valor']}`", 
+        f"❌ **Error de Extracción**\nNo se detectó una IP o URL válida en el formulario.", 
         cerrar=True
     )
     exit(0)
 
-# Consultamos reputación
-reputacion = consultar_virustotal(datos['tipo'], datos['valor'])
+# Consultar reputación
+detecciones = consultar_virustotal(datos['tipo'], datos['valor'])
 
-# Si tiene al menos 1 detección o si es una IP válida (puedes ajustar el umbral)
-if reputacion >= 1:
-    sufijo = "1" if "CL" in datos['fuente'] else "2" if "CO" in datos['fuente'] else "interno"
-    nombre_archivo = f"IoC_{datos['tipo']}{sufijo}.txt"
+# Umbral: Si tiene 1 o más detecciones, va a la lista de bloqueo
+if detecciones >= 1:
+    # Construcción del nombre del archivo: IoC_IP_Tisal.txt, etc.
+    nombre_archivo = f"IoC_{datos['tipo']}_{datos['fuente']}.txt"
     
-    # Escribir en el archivo (solo la IP/URL para que el Firewall no se confunda)
+    # Escribir en el archivo (Modo Append 'a')
     with open(nombre_archivo, "a") as f:
         f.write(f"{datos['valor']}\n")
     
     enviar_comentario_github(
-        f"✅ **IoC Procesado**\n- **Valor:** `{datos['valor']}`\n- **Detecciones VT:** {reputacion}\n- **Destino:** `{nombre_archivo}`", 
+        f"✅ **Bloqueo Automatizado**\n"
+        f"- **Indicador:** `{datos['valor']}`\n"
+        f"- **Fuente detectada:** {datos['fuente']}\n"
+        f"- **Detecciones VT:** {detecciones}\n"
+        f"- **Archivo actualizado:** `{nombre_archivo}`", 
         cerrar=True
     )
 else:
     enviar_comentario_github(
-        f"⚠️ **Resultado Limpio en VirusTotal**\nEl indicador `{datos['valor']}` tiene 0 detecciones. No se añadirá a la lista de bloqueo automática.", 
+        f"⚠️ **Análisis Finalizado**\nEl indicador `{datos['valor']}` tiene 0 detecciones en VirusTotal. No se añadirá a las listas de bloqueo.", 
         cerrar=True
     )
