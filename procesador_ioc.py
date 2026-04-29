@@ -9,7 +9,35 @@ GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 ISSUE_BODY = os.getenv('ISSUE_BODY', '')
 ISSUE_NUMBER = os.getenv('ISSUE_NUMBER')
 REPO = os.getenv('REPO')
+# Esta variable la entrega GitHub automáticamente: es el usuario que activó la Action
+USUARIO_ACTUAL = os.getenv('GITHUB_ACTOR') 
 
+# --- 🛡️ LISTA BLANCA DE USUARIOS AUTORIZADOS ---
+# Agrega aquí los nombres de usuario de GitHub de las personas permitidas
+USUARIOS_AUTORIZADOS = ["estevenguayara", "usuario_analista_1", "usuario_analista_2"]
+
+def enviar_comentario_github(mensaje, cerrar=False):
+    """Publica un comentario en el Issue y opcionalmente lo cierra."""
+    url = f"https://api.github.com/repos/{REPO}/issues/{ISSUE_NUMBER}/comments"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    requests.post(url, json={"body": mensaje}, headers=headers)
+    if cerrar:
+        requests.patch(f"https://api.github.com/repos/{REPO}/issues/{ISSUE_NUMBER}", 
+                       json={"state": "closed"}, headers=headers)
+
+# --- VALIDACIÓN DE SEGURIDAD (OPCIÓN 1) ---
+if USUARIO_ACTUAL not in USUARIOS_AUTORIZADOS:
+    enviar_comentario_github(
+        f"🚫 **Acceso Denegado**: El usuario @{USUARIO_ACTUAL} no está en la lista blanca para procesar bloqueos automáticos.", 
+        cerrar=True
+    )
+    print(f"ERROR: Intento de ejecución no autorizado por {USUARIO_ACTUAL}")
+    exit(0)
+
+# --- FUNCIONES DE EXTRACCIÓN Y PROCESAMIENTO ---
 def extraer_datos(body):
     """Analiza el cuerpo del Issue para extraer el valor y la fuente."""
     clean_body = body.replace('\r', '')
