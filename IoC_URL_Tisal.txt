@@ -69,3 +69,6 @@ modelscope.cn
 swatcha.net
 pool.supportxmr.com
 pool-fr.supportxmr.com
+claims-cloudbeds.com
+crunchyroll-claims.com
+claims-lawa.com
