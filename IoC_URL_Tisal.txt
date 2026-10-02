@@ -181,3 +181,5 @@ d1jp293q9tvi92.cloudfront.net
 d2g6dl71gua1qa.cloudfront.net
 d3nh8sl98s2554.cloudfront.net
 d2im6qbmbhag5x.cloudfront.net
+0utlook.org
+sharepoint.0utlook.org
